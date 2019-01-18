@@ -5,3 +5,5 @@ authors = ["Jess Balint <jbalint@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+termion = "*"
+tui = "0.3.0"
