@@ -5,5 +5,6 @@ authors = ["Jess Balint <jbalint@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-termion = "*"
+itertools = "*"
+termion = "1"
 tui = "0.3.0"
