@@ -10,14 +10,19 @@ use termion::raw::IntoRawMode;
 use tui::backend::Backend;
 use tui::backend::TermionBackend;
 use tui::layout::Rect;
+use tui::style::Color;
+use tui::style::Style;
 use tui::Terminal;
 use tui::widgets::Block;
 use tui::widgets::Borders;
 use tui::widgets::Paragraph;
 use tui::widgets::Text;
 use tui::widgets::Widget;
-use tui::style::Style;
-use tui::style::Color;
+
+mod jira;
+
+#[macro_use]
+extern crate serde_derive;
 
 fn draw_files<T: Backend>(terminal: &mut Terminal<T>, area: Rect) -> io::Result<()> {
     terminal.draw(|mut f| {
@@ -58,13 +63,14 @@ fn main() -> Result<(), io::Error> {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?;
-    let size = terminal.size()?;
 
     //let mut selected_file = 0;
 
     println!("{}", clear::All);
 
     for c in stdin().keys() {
+        let size = terminal.size()?;
+
         draw_files(&mut terminal, size)?;
 
         match c.unwrap() {
