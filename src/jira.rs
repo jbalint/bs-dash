@@ -17,6 +17,12 @@ use reqwest::RequestBuilder;
 
 type Url = String;
 
+static JIRA_URL_BASE: &str = "https://localhost/jira/rest/api/2/";
+
+static JIRA_FILTER_ID_OVERDUE_ISSUES: &str = "10300";
+
+static JIRA_FILTER_ID_DUE_IN_NEXT_2_WEEKS: &str = "10107";
+
 #[derive(Serialize, Debug)]
 struct SearchRequest {
     jql: String,
@@ -57,6 +63,15 @@ struct Status {
     name: String,
 }
 
+#[derive(Deserialize, Debug)]
+struct Filter {
+    id: String,
+    #[serde(rename = "self")]
+    url: Url,
+    name: String,
+    jql: String,
+}
+
 trait JiraRequest {
     fn jira_auth(self) -> Self;
 }
@@ -87,9 +102,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_search() -> Result<(), reqwest::Error> {
-        do_search();
-
+    fn basic_jira_query() -> Result<(), reqwest::Error> {
         // https://docs.atlassian.com/software/jira/docs/api/REST/7.12.0/#api/2/search
         let client = Client::new();
         let mut res = client.post("https://localhost/jira/rest/api/2/search")
@@ -117,6 +130,27 @@ mod test {
             let json: serde_json::Value = res.json()?;
             println!("deserialized {:?}", json);
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn get_filter() -> Result<(), reqwest::Error> {
+        let filter_id = "10300";
+
+        let client = Client::new();
+        let url = format!("{}/filter/{}", JIRA_URL_BASE, filter_id);
+        let mut res = client.get(&url)
+            .jira_auth()
+            .send()?;
+
+        println!("res: {:?}", res);
+
+        assert_eq!(StatusCode::OK, res.status());
+
+        let filter: Filter = res.json()?;
+
+        println!("filter: {:?}", filter);
 
         Ok(())
     }
