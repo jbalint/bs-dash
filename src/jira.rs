@@ -5,10 +5,18 @@
 
 // c.f. https://serde.rs/derive.html
 
+// TODO : better debugging of errors like this:
+// Error: Error { kind: Json(Error("premature end of input", line: 1, column: 8617)), url: None }
+// Had a DateTime type instead of Date for duedate
+
 use std::env;
 use std::fmt::Display;
 use std::str::FromStr;
 
+use chrono::DateTime;
+use chrono::Local;
+use chrono::NaiveDate;
+use chrono::Utc;
 use http::StatusCode;
 use reqwest::Client;
 use reqwest::RequestBuilder;
@@ -44,7 +52,6 @@ impl SearchRequest {
             max_results: DEFAULT_MAX_RESULTS,
             fields: vec![String::from("status"),
                          String::from("summary"),
-                         // TODO : some way to print the JSON result before parsing so I can see "new" fields
                          String::from("*all")],
         }
     }
@@ -74,6 +81,8 @@ pub struct IssueFields {
     summary: String,
     // TODO : don't need a nested object here, just the status name
     status: Status,
+    created: DateTime<Local>,
+    duedate: Option<NaiveDate>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -114,10 +123,16 @@ trait CheckedResponse {
 
 impl CheckedResponse for Response {
     fn check_ok(mut self) -> Self {
+        // TODO : could also use Response::error_for_status()
         if self.status() != StatusCode::OK {
             panic!("Request failed {}", self.text().unwrap());
         }
-        //println!("{}", self.text().unwrap());
+        if false {
+            // TODO : this still consumes the response and is not an effective logging facility
+            let mut body = Vec::new();
+            self.copy_to(&mut body).unwrap();
+            println!("Response:\n{}", String::from_utf8(body).unwrap());
+        }
         self
     }
 }
@@ -163,7 +178,7 @@ mod test {
              "jql": "project = BS",
              "startAt": 0,
              "maxResults": 2,
-             "fields": [ "summary", "status", "assignee" ] }"#)
+             "fields": [ "summary", "status", "assignee", "created" ] }"#)
             .send()?;
 
         println!("result {:?}", res);
