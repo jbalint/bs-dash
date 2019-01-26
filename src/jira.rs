@@ -9,26 +9,45 @@ use std::env;
 use std::fmt::Display;
 use std::str::FromStr;
 
+use http::StatusCode;
 use reqwest::Client;
-use reqwest::StatusCode;
+use reqwest::RequestBuilder;
+use reqwest::Response;
 use serde::Deserializer;
 use serde_json::from_str;
-use reqwest::RequestBuilder;
 
 type Url = String;
 
-static JIRA_URL_BASE: &str = "https://localhost/jira/rest/api/2/";
+static URL_BASE: &str = "https://localhost/jira/rest/api/2/";
 
-static JIRA_FILTER_ID_OVERDUE_ISSUES: &str = "10300";
+static FILTER_ID_OVERDUE_ISSUES: &str = "10300";
 
-static JIRA_FILTER_ID_DUE_IN_NEXT_2_WEEKS: &str = "10107";
+static FILTER_ID_DUE_IN_NEXT_2_WEEKS: &str = "10107";
+
+static DEFAULT_MAX_RESULTS: u32 = 100;
 
 #[derive(Serialize, Debug)]
 struct SearchRequest {
     jql: String,
+    #[serde(rename = "startAt")]
     start_at: u32,
+    #[serde(rename = "maxResults")]
     max_results: u32,
     fields: Vec<String>,
+}
+
+impl SearchRequest {
+    fn for_jql(jql: String) -> SearchRequest {
+        SearchRequest {
+            jql,
+            start_at: 0,
+            max_results: DEFAULT_MAX_RESULTS,
+            fields: vec![String::from("status"),
+                         String::from("summary"),
+                         // TODO : some way to print the JSON result before parsing so I can see "new" fields
+                         String::from("*all")],
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -37,7 +56,7 @@ struct IssueResponse {
 }
 
 #[derive(Deserialize, Debug)]
-struct Issue {
+pub struct Issue {
     // TODO : these are integers? How to get serde to parse them easily
     // #[serde(deserialize_with = "from_str")]
     // https://github.com/serde-rs/json/issues/317
@@ -51,14 +70,14 @@ struct Issue {
 }
 
 #[derive(Deserialize, Debug)]
-struct IssueFields {
+pub struct IssueFields {
     summary: String,
     // TODO : don't need a nested object here, just the status name
     status: Status,
 }
 
 #[derive(Deserialize, Debug)]
-struct Status {
+pub struct Status {
     id: String,
     name: String,
 }
@@ -72,11 +91,11 @@ struct Filter {
     jql: String,
 }
 
-trait JiraRequest {
+trait Request {
     fn jira_auth(self) -> Self;
 }
 
-impl JiraRequest for RequestBuilder {
+impl Request for RequestBuilder {
     fn jira_auth(self) -> Self {
         let (username, password) =
             match (env::var("JIRA_USERNAME"),
@@ -89,12 +108,43 @@ impl JiraRequest for RequestBuilder {
     }
 }
 
-fn auth(req: &mut Client) {}
+trait CheckedResponse {
+    fn check_ok(self) -> Self;
+}
 
-pub fn do_search() {
-    let req = SearchRequest { jql: String::from("jql=1"), start_at: 0, max_results: 0, fields: Vec::new() };
-    let string = serde_json::to_string(&req).unwrap();
-    println!("{}", string);
+impl CheckedResponse for Response {
+    fn check_ok(mut self) -> Self {
+        if self.status() != StatusCode::OK {
+            panic!("Request failed {}", self.text().unwrap());
+        }
+        //println!("{}", self.text().unwrap());
+        self
+    }
+}
+
+fn get_filter(id: &str) -> Result<Filter, reqwest::Error> {
+    let url = format!("{}/filter/{}", URL_BASE, id);
+    Client::new().get(&url)
+        .jira_auth()
+        .send()?
+        .check_ok()
+        .json()
+}
+
+fn get_issues(req: SearchRequest) -> Result<Vec<Issue>, reqwest::Error> {
+    let url = format!("{}/search", URL_BASE);
+    Ok(Client::new().post(&url)
+        .jira_auth()
+        .header(http::header::CONTENT_TYPE, "application/json")
+        .body(serde_json::to_string(&req).unwrap())
+        .send()?
+        .check_ok()
+        .json::<IssueResponse>()?
+        .issues)
+}
+
+pub fn get_overdue_issues() -> Result<Vec<Issue>, reqwest::Error> {
+    get_issues(SearchRequest::for_jql(get_filter(FILTER_ID_OVERDUE_ISSUES)?.jql))
 }
 
 #[cfg(test)]
@@ -135,23 +185,17 @@ mod test {
     }
 
     #[test]
-    fn get_filter() -> Result<(), reqwest::Error> {
-        let filter_id = "10300";
-
-        let client = Client::new();
-        let url = format!("{}/filter/{}", JIRA_URL_BASE, filter_id);
-        let mut res = client.get(&url)
-            .jira_auth()
-            .send()?;
-
-        println!("res: {:?}", res);
-
-        assert_eq!(StatusCode::OK, res.status());
-
-        let filter: Filter = res.json()?;
-
+    fn test_get_filter() -> Result<(), reqwest::Error> {
+        let filter = get_filter(FILTER_ID_OVERDUE_ISSUES)?;
+        assert_eq!(FILTER_ID_OVERDUE_ISSUES, filter.id);
         println!("filter: {:?}", filter);
+        Ok(())
+    }
 
+    #[test]
+    fn test_get_overdue() -> Result<(), reqwest::Error> {
+        let issues = get_overdue_issues()?;
+        println!("issues: {:?}", issues);
         Ok(())
     }
 }

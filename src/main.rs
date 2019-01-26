@@ -28,7 +28,7 @@ fn draw_files<T: Backend>(terminal: &mut Terminal<T>, area: Rect) -> io::Result<
     terminal.draw(|mut f| {
         let block = Block::default()
             .style(Style::default().bg(Color::White))
-            .title("Block")
+            .title(" Block ")
             .borders(Borders::ALL);
         // this is kind of stupid, but we create a /sorted/ list of strings
         // before turning them into Text objects
