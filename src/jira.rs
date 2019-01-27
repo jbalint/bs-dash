@@ -10,19 +10,14 @@
 // Had a DateTime type instead of Date for duedate
 
 use std::env;
-use std::fmt::Display;
-use std::str::FromStr;
 
 use chrono::DateTime;
 use chrono::Local;
 use chrono::NaiveDate;
-use chrono::Utc;
 use http::StatusCode;
 use reqwest::Client;
 use reqwest::RequestBuilder;
 use reqwest::Response;
-use serde::Deserializer;
-use serde_json::from_str;
 
 type Url = String;
 
