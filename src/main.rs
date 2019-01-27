@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate serde_derive;
+
 use std::fs::read_dir;
 use std::io;
 use std::io::stdin;
@@ -5,10 +8,15 @@ use std::io::stdin;
 use itertools::Itertools;
 use termion::clear;
 use termion::event::Key;
+use termion::input::MouseTerminal;
 use termion::input::TermRead;
 use termion::raw::IntoRawMode;
+use termion::screen::AlternateScreen;
 use tui::backend::Backend;
 use tui::backend::TermionBackend;
+use tui::Frame;
+use tui::layout::Constraint;
+use tui::layout::Layout;
 use tui::layout::Rect;
 use tui::style::Color;
 use tui::style::Style;
@@ -19,10 +27,8 @@ use tui::widgets::Paragraph;
 use tui::widgets::Text;
 use tui::widgets::Widget;
 
+mod event;
 mod jira;
-
-#[macro_use]
-extern crate serde_derive;
 
 fn draw_files<T: Backend>(terminal: &mut Terminal<T>, area: Rect) -> io::Result<()> {
     terminal.draw(|mut f| {
@@ -58,8 +64,9 @@ fn draw_files<T: Backend>(terminal: &mut Terminal<T>, area: Rect) -> io::Result<
 }
 
 fn main() -> Result<(), io::Error> {
-    //let test = HashMap::new();
     let stdout = io::stdout().into_raw_mode()?;
+//    let stdout = MouseTerminal::from(stdout);
+//    let stdout = AlternateScreen::from(stdout);
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?;
@@ -68,8 +75,23 @@ fn main() -> Result<(), io::Error> {
 
     println!("{}", clear::All);
 
+    loop {
+        let size = terminal.size()?;
+
+        terminal.draw(|mut f| {
+            let chunks = Layout::default()
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+                .split(size);
+        });
+    }
+
     for c in stdin().keys() {
         let size = terminal.size()?;
+
+        let x = [Constraint::Length(3)];
+//        let chunks = Layout::default()
+//            .constraints(x.as_ref())
+//            .split(terminal.size());
 
         draw_files(&mut terminal, size)?;
 

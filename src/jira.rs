@@ -67,28 +67,28 @@ pub struct Issue {
     // TODO : these are integers? How to get serde to parse them easily
     // #[serde(deserialize_with = "from_str")]
     // https://github.com/serde-rs/json/issues/317
-    id: String,
+    pub id: String,
     #[serde(rename = "self")]
-    url: Url,
-    key: String,
+    pub url: Url,
+    pub key: String,
     // TODO : can I flatten this without a custom serde method? (just embed the IssueFields members here)
     // like if I could have "summary" and say it comes from "fields.summary"
-    fields: IssueFields,
+    pub fields: IssueFields,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct IssueFields {
-    summary: String,
+    pub summary: String,
     // TODO : don't need a nested object here, just the status name
-    status: Status,
-    created: DateTime<Local>,
-    duedate: Option<NaiveDate>,
+    pub status: Status,
+    pub created: DateTime<Local>,
+    pub duedate: Option<NaiveDate>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Status {
-    id: String,
-    name: String,
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Deserialize, Debug)]
