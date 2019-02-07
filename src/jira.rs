@@ -1,4 +1,4 @@
-//! Jira client to retrieve items to display in the dashboard.
+//! Jira REST client
 //!
 //! Authentication is performed using HTTP Basic auth given the
 //! values from the `JIRA_USERNAME` and `JIRA_PASSWORD` env vars.
@@ -19,6 +19,9 @@ use reqwest::Client;
 use reqwest::RequestBuilder;
 use reqwest::Response;
 
+use crate::http_util::AuthRequest;
+use crate::http_util::CheckedResponse;
+
 type Url = String;
 
 static URL_BASE: &str = "https://localhost/jira/rest/api/2/";
@@ -28,6 +31,8 @@ static FILTER_ID_OVERDUE_ISSUES: &str = "10300";
 static FILTER_ID_DUE_IN_NEXT_2_WEEKS: &str = "10107";
 
 static DEFAULT_MAX_RESULTS: u32 = 100;
+
+static ENV_VAR_PREFIX: &str = "JIRA";
 
 #[derive(Serialize, Debug)]
 struct SearchRequest {
@@ -95,47 +100,10 @@ struct Filter {
     jql: String,
 }
 
-trait Request {
-    fn jira_auth(self) -> Self;
-}
-
-impl Request for RequestBuilder {
-    fn jira_auth(self) -> Self {
-        let (username, password) =
-            match (env::var("JIRA_USERNAME"),
-                   env::var("JIRA_PASSWORD")) {
-                (Ok(username), Ok(password)) => (username, password),
-                _ => panic!("JIRA_USERNAME and/or JIRA_PASSWORD not set"),
-            };
-
-        self.basic_auth(username, Some(password))
-    }
-}
-
-trait CheckedResponse {
-    fn check_ok(self) -> Self;
-}
-
-impl CheckedResponse for Response {
-    fn check_ok(mut self) -> Self {
-        // TODO : could also use Response::error_for_status()
-        if self.status() != StatusCode::OK {
-            panic!("Request failed {}", self.text().unwrap());
-        }
-        if false {
-            // TODO : this still consumes the response and is not an effective logging facility
-            let mut body = Vec::new();
-            self.copy_to(&mut body).unwrap();
-            println!("Response:\n{}", String::from_utf8(body).unwrap());
-        }
-        self
-    }
-}
-
 fn get_filter(id: &str) -> Result<Filter, reqwest::Error> {
     let url = format!("{}/filter/{}", URL_BASE, id);
     Client::new().get(&url)
-        .jira_auth()
+        .env_auth(ENV_VAR_PREFIX)
         .send()?
         .check_ok()
         .json()
@@ -144,7 +112,7 @@ fn get_filter(id: &str) -> Result<Filter, reqwest::Error> {
 fn get_issues(req: SearchRequest) -> Result<Vec<Issue>, reqwest::Error> {
     let url = format!("{}/search", URL_BASE);
     Ok(Client::new().post(&url)
-        .jira_auth()
+        .env_auth(ENV_VAR_PREFIX)
         .header(http::header::CONTENT_TYPE, "application/json")
         .body(serde_json::to_string(&req).unwrap())
         .send()?
@@ -166,7 +134,7 @@ mod test {
         // https://docs.atlassian.com/software/jira/docs/api/REST/7.12.0/#api/2/search
         let client = Client::new();
         let mut res = client.post("https://localhost/jira/rest/api/2/search")
-            .jira_auth()
+            .env_auth(ENV_VAR_PREFIX)
             .header(http::header::CONTENT_TYPE, "application/json")
             // TODO : could also use reqwest's json() method here with a HashMap
             .body(r#"{

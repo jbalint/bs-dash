@@ -1,3 +1,8 @@
+//! BS Dashboard
+//!
+//! An interactive dashboard to display events in
+//! [Banshee-Sympatico](https://github.com/jbalint/banshee-sympatico)
+
 #[macro_use]
 extern crate serde_derive;
 
@@ -34,6 +39,8 @@ use crate::jira::Issue;
 
 mod event;
 mod jira;
+mod sparql;
+mod http_util;
 
 #[derive(Debug)]
 enum CompoundError {
