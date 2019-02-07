@@ -35,6 +35,8 @@ use tui::widgets::Table;
 use tui::widgets::Text;
 use tui::widgets::Widget;
 
+use crate::event::Event;
+use crate::event::Events;
 use crate::jira::Issue;
 
 mod event;
@@ -127,30 +129,31 @@ fn main() -> Result<(), CompoundError> {
     let mut terminal = Terminal::new(backend)?;
     terminal.hide_cursor()?;
 
-    //let mut selected_file = 0;
+    let events = Events::new();
 
     println!("{}", clear::All);
 
-    for c in stdin().keys() {
+    loop {
         let size = terminal.size()?;
         // TODO : resizing
 
-        let chunks = Layout::default()
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
-            .split(size);
-
-        let issues = jira::get_overdue_issues()?;
-
         // TODO : propagating error from the closure
         terminal.draw(|mut f| {
-            // this all has to be done in one call to terminal::draw()
-            draw_files(&mut f, chunks[0]).unwrap();
-            draw_overdue_issues(&mut f, chunks[1], issues).unwrap();
-        })?;
+            let chunks = Layout::default()
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+                .split(size);
 
-        match c.unwrap() {
-            Key::Char('q') => break,
-            //Key::Up => { selected_file += 1 }
+            draw_files(&mut f, chunks[0]).expect("Failed to draw_files");
+
+            let issues = jira::get_overdue_issues() /* ? */;
+            draw_overdue_issues(&mut f, chunks[1], issues.unwrap()).unwrap();
+        });
+
+        match events.next().unwrap() {
+            Event::Input(input) => match input {
+                Key::Char('q') => break,
+                _ => {}
+            },
             _ => {}
         }
     }
