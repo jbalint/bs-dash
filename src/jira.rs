@@ -44,10 +44,10 @@ struct SearchRequest {
     fields: Vec<String>,
 }
 
-impl SearchRequest {
-    fn for_jql(jql: String) -> SearchRequest {
+impl<S: Into<String>> From<S> for SearchRequest {
+    fn from(jql: S) -> Self {
         SearchRequest {
-            jql,
+            jql: jql.into(),
             start_at: 0,
             max_results: DEFAULT_MAX_RESULTS,
             fields: vec![String::from("status"),
@@ -122,7 +122,7 @@ fn get_issues(req: SearchRequest) -> Result<Vec<Issue>, reqwest::Error> {
 }
 
 pub fn get_overdue_issues() -> Result<Vec<Issue>, reqwest::Error> {
-    get_issues(SearchRequest::for_jql(get_filter(FILTER_ID_OVERDUE_ISSUES)?.jql))
+    get_issues(get_filter(FILTER_ID_OVERDUE_ISSUES)?.jql.into())
 }
 
 #[cfg(test)]

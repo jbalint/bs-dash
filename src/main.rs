@@ -3,6 +3,8 @@
 //! An interactive dashboard to display events in
 //! [Banshee-Sympatico](https://github.com/jbalint/banshee-sympatico)
 
+#![deny(missing_docs)]
+
 #[macro_use]
 extern crate serde_derive;
 
