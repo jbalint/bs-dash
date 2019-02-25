@@ -41,6 +41,7 @@ use crate::jira::Issue;
 
 mod event;
 mod jira;
+mod pocket;
 mod sparql;
 mod http_util;
 
